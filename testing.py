@@ -1,4 +1,4 @@
-from fuctions import Trade, AccountBal, TradeOperations
+from helper import Trade, AccountBal, TradeOperations
 from datetime import timedelta
 from datetime import date
 import pandas as pd

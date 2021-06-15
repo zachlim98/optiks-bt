@@ -29,12 +29,19 @@ class AccountBal:
         self.value = value
         self.trade_val = []
         self.account_bal = []
+        self.wins = []
 
     def add_trade(self, trade_val):
         """
         This function is used to add the value of trades to the list within the account.
         """
         self.trade_val.append(trade_val)
+        if trade_val <= 0:
+            change = self.trade_val[-2] + trade_val # if it is 0 or negative means closing trade 
+            self.value = self.value + change
+            self.account_bal.append(self.value)
+        else:
+            pass
 
     def update_balance(self, change):
         """
@@ -42,6 +49,12 @@ class AccountBal:
         """
         self.value = self.value + change
         self.account_bal.append(self.value)
+
+    def update_wins(self, change):
+        """
+        This function updates the number of wins in an account
+        """
+        self.wins.append(change)
 
 class TradeOperations: 
     """
@@ -59,8 +72,7 @@ class TradeOperations:
         dte_max = timedelta(9)
         dte_min = timedelta(6)
         trade_dets = dataset[(dataset["DTE"] < dte_max) & 
-        (dataset["DTE"] > dte_min) & (dataset["Strike"] == strike_price) & 
-        (dataset["Type"] == "put")][["oid", "Bid", "Expiration"]].values[0]
+        (dataset["DTE"] > dte_min) & (dataset["Strike"] == strike_price)][["oid", "Bid", "Expiration"]].values[0]
         trade_oid = trade_dets[0]
         trade_val = trade_dets[1]
         trade_exp = trade_dets[2]
@@ -77,3 +89,48 @@ class TradeOperations:
         curr_trade.update_trade(close_val)
         account.add_trade(-curr_trade.get_value())
         account.add_trade(next_trade.get_value())
+
+class BacktestOperations:
+    """
+    Static holder to store operations for backtesting
+    """
+
+    @staticmethod
+    def run_backtest(curr_date, dataset):
+        days = []
+        curr_account = AccountBal(100)
+        tradeOn = False
+
+        while curr_date < dataset["DataDate"].max(): # loop through the days
+            curr_date += timedelta(1)
+            days.append(curr_date)
+            daily_set = dataset[dataset["DataDate"] == curr_date]
+            if tradeOn == False: # if there is no trade on, we want to search for a trade
+                try:
+                    new_trade = Trade(TradeOperations.find_trade(daily_set)) # create new trade class
+                    curr_account.add_trade(new_trade.get_value())
+                    curr_account.account_bal.append(curr_account.value)
+                    tradeOn = True
+                except:
+                    print(str(curr_date) + " is a Weekend, unable to open")
+                    curr_account.account_bal.append(curr_account.value)
+                
+            elif tradeOn == True:
+                try:
+                    if new_trade.exp-timedelta(0) == curr_date:
+                        new_trade.update_trade(daily_set[daily_set["oid"] == new_trade.id]["Ask"].values[0])
+                        curr_account.add_trade(-new_trade.get_value())
+                        print(str(curr_date) + " New Trade Added " + str(new_trade.id))
+                        new_trade = Trade(TradeOperations.find_trade(daily_set))
+                        curr_account.add_trade(new_trade.get_value())
+                    else:
+                        print(str(curr_date) + " No Trades Running " + str(new_trade.id))
+                        curr_account.account_bal.append(curr_account.value)
+                    pass
+                except:
+                    print(str(curr_date) + " ERROR: Closing Trade Manually ")
+                    new_trade.update_trade(float(new_trade.get_value())/2)
+                    curr_account.add_trade(-new_trade.get_value())
+                    tradeOn = False
+                        
+        return curr_account.trade_val, curr_account.account_bal
