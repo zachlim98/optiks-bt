@@ -1,6 +1,7 @@
 from datetime import timedelta
 from os import stat
 import numpy as np
+import quantstats as qs
 
 class Trade: 
     """
@@ -96,15 +97,15 @@ class BacktestOperations:
     """
 
     @staticmethod
-    def run_backtest(curr_date, dataset):
+    def run_backtest(curr_date, dataset, acc_initial_value): # start backtest, with own dataset
         days = []
-        curr_account = AccountBal(100)
+        curr_account = AccountBal(acc_initial_value)
         tradeOn = False
 
         while curr_date < dataset["DataDate"].max(): # loop through the days
-            curr_date += timedelta(1)
-            days.append(curr_date)
-            daily_set = dataset[dataset["DataDate"] == curr_date]
+            curr_date += timedelta(1) # increase days
+            days.append(curr_date) # store days
+            daily_set = dataset[dataset["DataDate"] == curr_date] # create sub-df with just today's data
             if tradeOn == False: # if there is no trade on, we want to search for a trade
                 try:
                     new_trade = Trade(TradeOperations.find_trade(daily_set)) # create new trade class
@@ -133,4 +134,16 @@ class BacktestOperations:
                     curr_account.add_trade(-new_trade.get_value())
                     tradeOn = False
                         
-        return curr_account.trade_val, curr_account.account_bal
+        return curr_account.trade_val, curr_account.account_bal, days
+
+    @staticmethod
+    def benchmark_results(bal, days, benchmark="SPY"):
+        """
+        Function to allow one to analyse the results of a
+        backtest. Requires list of balances and dates from
+        backtest results. 
+
+        Default benchmark is SPY but this can be changed. 
+        """
+        returns_series = pd.DataFrame({"Returns": pd.Series(bal[0:len(days)]).pct_change(), "Date":days}).set_index("Date").squeeze()
+        return qs.reports.basic(returns_series, benchmark)
