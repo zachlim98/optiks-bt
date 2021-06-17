@@ -1,6 +1,6 @@
 
 
-![Backtester](X:\GitHub\optiks-bt\resources\logo.png)
+![Backtester](https://github.com/zachlim98/optiks-bt/blob/main/resources/logo.png)
 
 ![issues](https://img.shields.io/github/issues/zachlim98/optiks-bt) ![license](https://img.shields.io/github/license/zachlim98/optiks-bt)
 
@@ -30,7 +30,7 @@ The main function is `run_backtest()` which, as the name suggests, runs the back
 
 Currently OpTiks is designed to test only a single strategy - an ATM (At-The-Money) put writing strategy with no trade management. The developmental roadmap is below with the future strategies will be added. OpTiks rides on [quantstats](https://github.com/ranaroussi/quantstats) to allow for analysis of the strategy. This is an example output from OpTiks (using SPY data, 2019 - 2021), with benchmark as buy-and-hold SPY
 
-<img src="C:\Users\Zachary\AppData\Roaming\Typora\typora-user-images\image-20210617112647043.png" alt="image-20210617112647043" style="zoom: 50%;" />
+![image-20210617112647043](https://user-images.githubusercontent.com/68678549/122326955-b1fe2e00-cf5f-11eb-97c8-65f6297486b7.png)
 
 ### Strategy Roadmap
 
