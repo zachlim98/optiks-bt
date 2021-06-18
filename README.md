@@ -32,8 +32,23 @@ Currently OpTiks is designed to test only a single strategy - an ATM (At-The-Mon
 
 ![image-20210617112647043](https://user-images.githubusercontent.com/68678549/122326955-b1fe2e00-cf5f-11eb-97c8-65f6297486b7.png)
 
+### Strategy Set Available
+
+1. Put Writing
+
+   This is the most basic strategy and involves Put-Writing with no frills and no management. It is a simple ATM Put Writing strategy that rolls every 7 days to the next weekly expiration. This can be activated using `run_backtest()`
+
+2. Put Writing - Hold the Strike
+
+   This idea of "Hold the Strike" popularly originated from a Reel Ken [article](https://seekingalpha.com/article/4210320-selling-puts-good-bad-and-ugly) on SeekingAlpha and he argued that holding the strike, while resulting in one suffering from severe drawdowns would allow one to eventually beat the market in the eventual recovery. The concept behind this strategy is that one would not "ratchet" down if one is losing but instead simply roll out to the same strike (no matter how deep ITM) and collect the extrinsic premium. This can be activated using `run_backtest_HTS()`. 
+
 ### Strategy Roadmap
 
-- ATM put writing (hold strike, no rolling)
+- ~~ATM put writing (hold strike, no rolling)~~ <18.06.21 UPDATE>
 - Hedging (e.g. VXX calls)
 - Wheeling (taking assignment and call writing)
+
+### Development Roadmap
+
+- Integrate backtest running into single function and allow for plug and play of strategies 
+- Segregate strategies into specific functions that can be edited to allow users to develop own strategies within the larger backtesting framework 

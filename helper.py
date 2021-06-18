@@ -12,6 +12,7 @@ class Trade:
         self.id = tradeop[0]
         self.value = tradeop[1]
         self.exp = tradeop[2]
+        self.strike = tradeop[3]
 
     def update_trade(self, value):
         """
@@ -74,11 +75,32 @@ class TradeOperations:
         dte_max = timedelta(9)
         dte_min = timedelta(6)
         trade_dets = dataset[(dataset["DTE"] < dte_max) & 
-        (dataset["DTE"] > dte_min) & (dataset["Strike"] == strike_price)][["oid", "Bid", "Expiration"]].values[0]
+        (dataset["DTE"] > dte_min) & (dataset["Strike"] == strike_price)][["oid", "Bid", "Expiration", "Strike"]].values[0]
         trade_oid = trade_dets[0]
         trade_val = trade_dets[1]
         trade_exp = trade_dets[2]
-        return trade_oid, trade_val, trade_exp
+        trade_strike = trade_dets[3]
+        return trade_oid, trade_val, trade_exp, trade_strike
+
+    @staticmethod
+    def find_same_strike(previous_trade, dataset):
+        """
+        This function is used to find a new trade to enter, when we are holding the strike. 
+        It matches the strike price to the previous trade and sets a DTE range. 
+        These two parameters are sufficient to source for the trade to enter. It returns a tuple which 
+        is then used within the Trade class to create a new Trade object. 
+        """
+        strike_price = previous_trade # set the strike price to the previous trade to "hold the strike"
+        dte_max = timedelta(9)
+        dte_min = timedelta(6)
+        trade_dets = dataset[(dataset["DTE"] < dte_max) & 
+        (dataset["DTE"] > dte_min) & (dataset["Strike"] == strike_price)][["oid", "Bid", "Expiration", "Strike"]].values[0]
+        trade_oid = trade_dets[0]
+        trade_val = trade_dets[1]
+        trade_exp = trade_dets[2]
+        trade_strike = trade_dets[3]
+        return trade_oid, trade_val, trade_exp, trade_strike
+
 
     @staticmethod
     def close_trade(account, curr_trade, close_val, next_trade):
@@ -136,6 +158,55 @@ class BacktestOperations:
                     tradeOn = False
                         
         return curr_account.trade_val, curr_account.account_bal, days
+
+    @staticmethod
+    def run_backtest_HTS(curr_date, dataset, acc_initial_value): # start backtest, with own dataset
+        days = [] 
+        curr_account = AccountBal(acc_initial_value)
+        tradeOn = False
+
+        while curr_date < dataset["DataDate"].max(): # loop through the days
+            curr_date += timedelta(1) # increase days
+            days.append(curr_date) # store days
+            daily_set = dataset[dataset["DataDate"] == curr_date] # create sub-df with just today's data
+            if tradeOn == False: # if there is no trade on, we want to search for a trade
+                try:
+                    new_trade = Trade(TradeOperations.find_trade(daily_set)) # create new trade class
+                    curr_account.add_trade(new_trade.get_value())
+                    curr_account.account_bal.append(curr_account.value)
+                    tradeOn = True
+                except:
+                    print(str(curr_date) + " is a Weekend, unable to open")
+                    curr_account.account_bal.append(curr_account.value)
+                
+            elif tradeOn == True:
+                try:
+                    if new_trade.exp-timedelta(0) == curr_date: # for the day itself...
+                        closing_trade_val = new_trade.get_value() # here, we store the values for the trade that is being closed and its strike
+                        closing_trade_strike = new_trade.strike
+                        opening_trade_val = daily_set[daily_set["oid"] == new_trade.id]["Ask"].values[0] # find the trade's closing price
+                        new_trade.update_trade(opening_trade_val) # either way, we need to add in the closing price of the trade
+                        curr_account.add_trade(-new_trade.get_value())
+                        if closing_trade_val < opening_trade_val: # if we are losing, hold the strike
+                            new_trade = Trade(TradeOperations.find_same_strike(closing_trade_strike, daily_set))
+                            print(str(curr_date) + " HOLD THE STRIKE " + str(new_trade.id))
+                            curr_account.add_trade(new_trade.get_value())
+                        elif closing_trade_val >= opening_trade_val: # if we won, just open a new trade as per usual (i.e. ATM)
+                            new_trade = Trade(TradeOperations.find_trade(daily_set))
+                            print(str(curr_date) + " New Trade Added " + str(new_trade.id))
+                            curr_account.add_trade(new_trade.get_value())
+                    else:
+                        print(str(curr_date) + " No Trades Running " + str(new_trade.id))
+                        curr_account.account_bal.append(curr_account.value)
+                    pass
+                except:
+                    print(str(curr_date) + " ERROR: Closing Trade Manually ")
+                    new_trade.update_trade(float(new_trade.get_value())/2)
+                    curr_account.add_trade(-new_trade.get_value())
+                    tradeOn = False
+                        
+        return curr_account.trade_val, curr_account.account_bal, days
+
 
     @staticmethod
     def benchmark_results(bal, days, benchmark="SPY"):
